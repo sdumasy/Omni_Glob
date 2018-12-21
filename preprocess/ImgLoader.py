@@ -14,7 +14,7 @@ class ImgLoader(object):
 
     def create_image_records(self):
         """Loop through the image files and write to tfrecords"""
-        writer = tf.python_io.TFRecordWriter(Constants.train_record_output_dir)
+        writer = tf.python_io.TFRecordWriter(Constants.record_file)
         for folder in tqdm.tqdm(Constants.file_list):
             for character in glob.glob(folder + "/*"):
                 for file_name in glob.glob(character + "/*.png"):
@@ -36,38 +36,33 @@ class ImgLoader(object):
 
         writer.close()
 
-    def rec_img(self, record_file):
-        """Reconstruct the image and show the image"""
+    def rec_img(self):
+        """Reconstruct the image and show the image, total images: 19280"""
 
-        record_iterator = tf.python_io.tf_record_iterator(path=record_file)
+        record_iterator = tf.python_io.tf_record_iterator(path=Constants.record_file)
         sum = 0
 
         for string_record in record_iterator:
 
             sum +=1
-            if sum>100:
-                break
 
             example = tf.train.Example()
             example.ParseFromString(string_record)
 
-            img_string = (example.features.feature['image_raw']
+            img_string = (example.features.feature[Constants.id_record_image]
                 .bytes_list
                 .value[0])
 
-            label = (example.features.feature['key_raw']
+            label = (example.features.feature[Constants.id_record_key]
                 .bytes_list
                 .value[0])
 
             img_1d = np.fromstring(img_string, dtype=np.uint8)
-            # key = key_string.decode()
             reconstructed_img = img_1d.reshape((Constants.image_dimension, Constants.image_dimension))
             img = Image.fromarray(reconstructed_img, 'L')
-            img.show()
-            print(label)
+            # img.show()
 
         print(sum)
-        time.sleep(10)
 
 
 
