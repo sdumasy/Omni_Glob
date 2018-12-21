@@ -8,18 +8,16 @@ from matplotlib import pyplot as plt
 class DataContainer(object):
 
     def __init__(self):
-        """Initiliase the data container with the feature names and amount of samples"""
-        self.min_after_dequeue = 1280
-        self.threads = 32
-        self.init_batches()
-
-    def init_batches(self):
-        """Init the variables holding the queue with batchees"""
+        """splits the data"""
         self.train_files = [Constants.record_file]
-        dataset = self.get_dataset()  # one of the above implementations
+        dataset = self.get_dataset()
         self.train_data = dataset.take(Constants.train_size)
         self.dev_data = dataset.take(Constants.dev_size)
         self.test_data = dataset.take(Constants.test_size)
+
+        self.train_iterator = self.train_data.make_initializable_iterator(shared_name=None)
+        self.dev_iterator = self.train_data.make_initializable_iterator(shared_name=None)
+        self.test_iterator = self.train_data.make_initializable_iterator(shared_name=None)
 
     def get_dataset(self):
         dataset = tf.data.TFRecordDataset(self.train_files)
@@ -27,6 +25,7 @@ class DataContainer(object):
         dataset = dataset.shuffle(Constants.train_size)
         dataset = dataset.map(self.parse_function)
         dataset = dataset.batch(Constants.batch_size)
+        """Initiliase the data container with the feature names and amount of samples"""
         return dataset
 
     def parse_function(self, example):
@@ -36,6 +35,7 @@ class DataContainer(object):
             example, features={
                 Constants.id_record_key : tf.FixedLenFeature([], tf.string),
                 Constants.id_record_image : tf.FixedLenFeature([], tf.string),
+                Constants.id_record_label : tf.FixedLenFeature([], tf.int64),
             })
 
         img = tf.decode_raw(features[Constants.id_record_image], tf.uint8)
@@ -47,8 +47,9 @@ class DataContainer(object):
         # img = tf.image.per_image_standardization(img)
 
         key = tf.cast(features[Constants.id_record_key], tf.string)
+        label = tf.cast(features[Constants.id_record_label], tf.int64)
 
-        return key, img
+        return key, img, label
 
     def visualise_data(self):
 
@@ -56,15 +57,13 @@ class DataContainer(object):
 
             sess.run(tf.global_variables_initializer())
 
-            iterator = self.train_data.make_initializable_iterator(shared_name=None)
-            sess.run(iterator.initializer)
+            sess.run(self.train_iterator.initializer)
 
             for i in range(10):
 
-                key, img = iterator.get_next()
-                img = sess.run(img)
+                key, img, label = sess.run(self.train_iterator.get_next())
+                print("KEY: ", key[0], "LABEL: ", label[0])
                 plt.imshow(img[0].reshape(Constants.image_dimension, Constants.image_dimension), interpolation='nearest')
                 plt.show()
-
 
             sess.close()
